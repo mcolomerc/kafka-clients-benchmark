@@ -18,6 +18,7 @@ services:
     ports:
       - "9092:9092"
       - "9101:9101"
+      - "8090:8090"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
@@ -38,6 +39,10 @@ services:
       CONFLUENT_METRICS_ENABLE: 'true'
       CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
       EXTRA_ARGS: -javaagent:/usr/share/jmx-exporter/jmx_prometheus_javaagent-0.16.1.jar=1234:/usr/share/jmx-exporter/kafka_broker.yml
+      KAFKA_KAFKA_REST_ADVERTISED_LISTENERS: http://localhost:8090
+      KAFKA_KAFKA_REST_ACCESS_CONTROL_ALLOW_ORIGIN: '*'
+      KAFKA_KAFKA_REST_ACCESS_CONTROL_ALLOW_METHODS: GET,POST,PUT,DELETE
+      KAFKA_KAFKA_REST_ACCESS_CONTROL_ALLOW_HEADERS: origin,content-type,accept,authorization
     volumes:
       - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter
 
@@ -151,7 +156,7 @@ services:
 
   # Collector
   collector:
-   image: otel/opentelemetry-collector:latest
+   image: otel/opentelemetry-collector-contrib:latest
    volumes:
      - ./collector/config.yml:/etc/collector-gateway.yaml
    command: [ "--config=/etc/collector-gateway.yaml" ]
@@ -191,7 +196,7 @@ services:
         OTEL_VERSION: 1.15.0 
         PROMETHEUS_AGENT_VERSION: 0.17.0
     environment:
-     - APP_NAME=scs-app 
+     - APP_NAME=java-producer
      - COLLECTOR_ENDPOINT=http://collector:4317    
     ports:
       - "38080:38080"
