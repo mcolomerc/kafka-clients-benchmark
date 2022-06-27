@@ -23,7 +23,7 @@ exporters:
   
   dynatrace: 
     endpoint: "https://wmo29901.live.dynatrace.com/api/v2/metrics/ingest" 
-    api_token: "dt0c01.T5SUNNFEAZ2BAN3IAEXKTEF5.VVYRM5AUZEVDY5BAO6ZJMUN44FB3KCCLXBWNJC4MWS57PZZ7G3FDTFACFBDD65LX" 
+    api_token: <token>
     read_buffer_size: 4000
     write_buffer_size: 4000
     retry_on_failure:
