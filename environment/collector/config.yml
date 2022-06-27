@@ -1,29 +1,30 @@
 receivers:
-  otlp:
-    protocols:
-      grpc:
+ otlp:
+  protocols:
+    grpc:
+ # Collect own metrics and export them to Dynatrace
+ prometheus:
+   config:
+     scrape_configs:
+      - job_name: 'otel-collector'
+        scrape_interval: 10s
+        static_configs:
+        - targets: [ 'prometheus:9090' ]
 
-exporters:
-  prometheus:
-    endpoint: "0.0.0.0:8889"
-    const_labels:
-      label1: value1
-
+exporters: 
   logging:
-    loglevel: debug
-
-  zipkin:
-    endpoint: "http://zipkin:9411/api/v2/spans"
-    format: proto
-
-  jaeger:
-    endpoint: jaeger:14250
+  otlphttp:
+    endpoint: ""
+    headers: {"Authorization": "Api-Token "}  
+  otlp:
+    endpoint: http://collector:4317
     tls:
       insecure: true
   
   dynatrace: 
-    endpoint: "https://wmo29901.live.dynatrace.com/api/v2/metrics/ingest" 
-    api_token: <token>
+    endpoint:  
+    api_token: "" 
+    prefix: otpcol
     read_buffer_size: 4000
     write_buffer_size: 4000
     retry_on_failure:
@@ -35,7 +36,7 @@ exporters:
       enabled: true
       num_consumers: 10
       queue_size: 5000
-
+      
 processors:
   batch:
    # Batch size must be less than or equal to 1000
@@ -43,24 +44,25 @@ processors:
    # processor with a maximum batch size of 1000 metrics and a timeout between 10 and 60 seconds. 
    # Batches with more than 1000 metrics may be throttled by Dynatrace.
    send_batch_max_size: 1000
-   send_batch_size: 1000
-   timeout: 30s 
+   send_batch_size: 800
+   timeout: 30s
 
-extensions:
-  health_check:
-  pprof:
-    endpoint: :1888
-  zpages:
-    endpoint: :55679
+#extensions:
+  #health_check:
+  #pprof:
+    #endpoint: :1888
+  #zpages:
+    #endpoint: :55679
 
 service:
-  extensions: [pprof, zpages, health_check]
+  #extensions: [health_check,pprof,zpages]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [logging, zipkin, jaeger]
+      processors: []
+      exporters: [logging, otlphttp]
     metrics:
-      receivers: [otlp]
+      receivers: [prometheus]
       processors: [batch]
-      exporters: [logging, prometheus, dynatrace]
+      exporters: [logging, dynatrace]
+    

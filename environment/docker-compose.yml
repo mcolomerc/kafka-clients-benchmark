@@ -110,51 +110,17 @@ services:
       CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
       CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
       CONFLUENT_METRICS_TOPIC_REPLICATION: 1
-      PORT: 9021
-
+      PORT: 9021 
+      EXTRA_ARGS: -javaagent:/usr/share/jmx-exporter/jmx_prometheus_javaagent-0.16.1.jar=1234:/usr/share/jmx-exporter/confluent_controlcenter.yml
+ 
+ # Prometheus 
   prometheus:
     image: prom/prometheus:v2.29.2 
     ports:
       - 9090:9090
     volumes:
       - ./monitoring/assets/prometheus/prometheus-config/:/etc/prometheus 
-
-  kafka-lag-exporter:
-    image: lightbend/kafka-lag-exporter:0.6.7
-    container_name: kafka-lag-exporter
-    hostname: kafka-lag-exporter
-    restart: always
-    volumes:
-      - ./shared-assets/kafka-lag-exporter:/opt/docker/conf
-      - ./monitoring/assets/prometheus/security:/etc/kafka/secrets 
-
-  grafana:
-    image: grafana/grafana:8.1.3
-    container_name: grafana
-    environment:
-      - "GF_SECURITY_ADMIN_USER=admin"
-      - "GF_SECURITY_ADMIN_PASSWORD=password"
-      - "GF_USERS_ALLOW_SIGN_UP=false"
-    ports:
-      - "3000:3000" 
-    volumes:
-      - ./monitoring/assets/grafana/provisioning/:/etc/grafana/provisioning
-
-  # zipkin
-  zipkin:
-    image: openzipkin/zipkin:latest
-    ports:
-      - "9411:9411"
-
-  # Jaeger
-  jaeger:
-   image: jaegertracing/all-in-one:latest
-   ports:
-     - "16686:16686"
-     - "14268"
-     - "14250"
-
-  # Collector
+ # Collector
   collector:
    image: otel/opentelemetry-collector-contrib:latest
    volumes:
@@ -166,9 +132,7 @@ services:
      - "4317:4317"        # OTLP gRPC receiver
      - "4318:4318"        # OTLP HTTP receiver
      - "55670:55679" # zpages extension
-   depends_on:
-     - jaeger
-     - zipkin
+
  #spring app
   spring-app: 
     build:
@@ -184,8 +148,7 @@ services:
       - "28080:28080"
     volumes:
       - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter
-    depends_on:
-     - collector  
+     
  
   #java producer
   java-producer: 
@@ -202,10 +165,7 @@ services:
       - "38080:38080"
     volumes:
       - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter 
-    depends_on:
-      - broker
-      - schema-registry
-      - collector  
+    
   #java consumer
   java-consumer: 
     build:
@@ -216,7 +176,4 @@ services:
         PROMETHEUS_AGENT_VERSION: 0.17.0
     volumes:
       - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter 
-    depends_on:
-      - broker
-      - schema-registry
-      - collector  
+    

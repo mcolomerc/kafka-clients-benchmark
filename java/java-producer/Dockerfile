@@ -15,6 +15,7 @@ WORKDIR $APP_HOME
 
 RUN wget https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_VERSION}/opentelemetry-javaagent.jar 
 RUN wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${PROMETHEUS_AGENT_VERSION}/jmx_prometheus_javaagent-${PROMETHEUS_AGENT_VERSION}.jar -O jmx_prometheus_javaagent.jar
+ 
 
 COPY src $APP_HOME/src
 COPY config $APP_HOME/config
@@ -22,13 +23,13 @@ COPY pom.xml $APP_HOME
 RUN mvn -f $APP_HOME/pom.xml clean package  
 
 # App ############################################
-FROM adoptopenjdk/openjdk11:ubi  
+FROM adoptopenjdk/openjdk11:ubi   
 
 COPY --from=builder $APP_HOME/target/java-client-jar-with-dependencies.jar app.jar
 COPY --from=builder $APP_HOME/config/application-docker.yml application-docker.yml
 
 COPY --from=builder $APP_HOME/jmx_prometheus_javaagent.jar jmx_prometheus_javaagent.jar
-COPY --from=builder $APP_HOME/opentelemetry-javaagent.jar opentelemetry-javaagent.jar
+COPY --from=builder $APP_HOME/opentelemetry-javaagent.jar opentelemetry-javaagent.jar 
 
 EXPOSE 38080
   
