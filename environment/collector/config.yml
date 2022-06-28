@@ -2,12 +2,37 @@ receivers:
   otlp:
     protocols:
       grpc:
+  jmx/producer:
+    jar_path: /opt/opentelemetry-jmx-metrics.jar
+    endpoint: java-producer:5000
+    target_system: jvm,kafka-producer
+    collection_interval: 10s
+    resource_attributes: 
+      service.name: java-producer
 
+  jmx/consumer:
+    jar_path: /opt/opentelemetry-jmx-metrics.jar
+    endpoint: java-consumer:5000
+    target_system: jvm,kafka-consumer
+    collection_interval: 10s  
+    resource_attributes: 
+      service.name: java-consumer
+
+  jmx/broker:
+    jar_path: /opt/opentelemetry-jmx-metrics.jar
+    endpoint: broker:9101
+    target_system: jvm,kafka
+    collection_interval: 10s
+    resource_attributes: 
+      service.name: broker
+    
 exporters:
   prometheus:
     endpoint: "0.0.0.0:8889"
-    const_labels:
-      label1: value1
+    send_timestamps: true
+    metric_expiration: 180m
+    resource_to_telemetry_conversion:
+      enabled: true 
 
   logging:
     loglevel: debug
@@ -18,7 +43,8 @@ exporters:
 
   jaeger:
     endpoint: jaeger:14250 
-    insecure: true
+    tls:
+      insecure: true
 
 processors:
   batch:
@@ -38,6 +64,6 @@ service:
       processors: [batch]
       exporters: [logging, zipkin, jaeger]
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, jmx/producer, jmx/consumer, jmx/broker]
       processors: [batch]
       exporters: [logging, prometheus]

@@ -6,10 +6,7 @@ services:
       - "2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-      EXTRA_ARGS: -javaagent:/usr/share/jmx-exporter/jmx_prometheus_javaagent-0.16.1.jar=1234:/usr/share/jmx-exporter/zookeeper.yml
-    volumes:
-      - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter
+      ZOOKEEPER_TICK_TIME: 2000 
 
   broker:
     image: confluentinc/cp-server:7.1.0 
@@ -31,15 +28,12 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_JMX_PORT: 9101
-      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_JMX_HOSTNAME: broker
       KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: broker:29092
       CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
       CONFLUENT_METRICS_ENABLE: 'true'
-      CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
-      EXTRA_ARGS: -javaagent:/usr/share/jmx-exporter/jmx_prometheus_javaagent-0.16.1.jar=1234:/usr/share/jmx-exporter/kafka_broker.yml
-    volumes:
-      - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter
+      CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'  
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.1.0 
@@ -51,9 +45,7 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-      EXTRA_ARGS: -javaagent:/usr/share/jmx-exporter/jmx_prometheus_javaagent-0.16.1.jar=1234:/usr/share/jmx-exporter/confluent_schemaregistry.yml
-    volumes:
-      - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter
+     
 
   connect:
     image: cnfldemos/cp-server-connect-datagen:0.5.0-6.2.0 
@@ -61,9 +53,7 @@ services:
       - broker
       - schema-registry
     ports:
-      - "8083:8083"
-    volumes:
-      - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter
+      - "8083:8083" 
     environment:
       CONNECT_BOOTSTRAP_SERVERS: 'broker:29092'
       CONNECT_REST_ADVERTISED_HOST_NAME: connect
@@ -85,8 +75,7 @@ services:
       CONNECT_CONSUMER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor"
       CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
       CONNECT_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR
-      EXTRA_ARGS: -javaagent:/usr/share/jmx-exporter/jmx_prometheus_javaagent-0.16.1.jar=1234:/usr/share/jmx-exporter/kafka_connect.yml
-
+      
   control-center:
     image: confluentinc/cp-enterprise-control-center:7.1.0 
     depends_on:
@@ -108,20 +97,11 @@ services:
       PORT: 9021
 
   prometheus:
-    image: prom/prometheus:v2.29.2 
+    image: prom/prometheus:v2.36.2 
     ports:
       - 9090:9090
     volumes:
-      - ./monitoring/assets/prometheus/prometheus-config/:/etc/prometheus 
-
-  kafka-lag-exporter:
-    image: lightbend/kafka-lag-exporter:0.6.7
-    container_name: kafka-lag-exporter
-    hostname: kafka-lag-exporter
-    restart: always
-    volumes:
-      - ./shared-assets/kafka-lag-exporter:/opt/docker/conf
-      - ./monitoring/assets/prometheus/security:/etc/kafka/secrets 
+      - ./monitoring/assets/prometheus/prometheus-config/:/etc/prometheus  
 
   grafana:
     image: grafana/grafana:8.1.3
@@ -151,9 +131,11 @@ services:
 
   # Collector
   collector:
-   image: otel/opentelemetry-collector:latest
+   build: 
+      context: ./collector
+      dockerfile: Dockerfile 
    volumes:
-     - ./collector/config.yml:/etc/collector-gateway.yaml
+     - ./collector/config.yml:/etc/collector-gateway.yaml  
    command: [ "--config=/etc/collector-gateway.yaml" ]
    ports:
      - "1888:1888"   # pprof extension
@@ -161,26 +143,11 @@ services:
      - "4317:4317"        # OTLP gRPC receiver
      - "4318:4318"        # OTLP HTTP receiver
      - "55670:55679" # zpages extension
+     - "8888:8888"   # Prometheus metrics exposed by the collector
+     - "8889:8889"   # Prometheus exporter metrics
    depends_on:
      - jaeger
-     - zipkin
- #spring app
-  spring-app: 
-    build:
-      context: ../spring/spring-kafka
-      dockerfile: Dockerfile 
-      args: 
-        OTEL_VERSION: 1.15.0 
-        PROMETHEUS_AGENT_VERSION: 0.17.0
-    environment:
-     - APP_NAME=spring-app 
-     - COLLECTOR_ENDPOINT=http://collector:4317
-    ports:
-      - "28080:28080"
-    volumes:
-      - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter
-    depends_on:
-     - collector  
+     - zipkin 
  
   #java producer
   java-producer: 
@@ -188,15 +155,13 @@ services:
       context: ../java/java-producer
       dockerfile: Dockerfile 
       args: 
-        OTEL_VERSION: 1.15.0 
-        PROMETHEUS_AGENT_VERSION: 0.17.0
+        OTEL_VERSION: 1.15.0  
     environment:
-     - APP_NAME=java-producer 
-     - COLLECTOR_ENDPOINT=http://collector:4317    
+      APP_NAME: java-producer 
+      COLLECTOR_ENDPOINT: http://collector:4317  
+     
     ports:
-      - "38080:38080"
-    volumes:
-      - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter 
+      - "38080:38080" 
     depends_on:
       - broker
       - schema-registry
@@ -208,9 +173,9 @@ services:
       dockerfile: Dockerfile 
       args: 
         OTEL_VERSION: 1.15.0 
-        PROMETHEUS_AGENT_VERSION: 0.17.0
-    volumes:
-      - ./shared-assets/jmx-exporter/:/usr/share/jmx-exporter 
+    environment:
+      APP_NAME: java-consumer 
+      COLLECTOR_ENDPOINT: http://collector:4317  
     depends_on:
       - broker
       - schema-registry
